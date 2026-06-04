@@ -198,33 +198,6 @@ Example document:
 }
 ```
 
-### Pre-built MongoDB Views
-
-The seed script automatically creates two MongoDB views (queryable as flat tables in Superset):
-
-| View name | Description |
-|---|---|
-| `player_sessions` | `players` with `game_sessions` array unwound — one row per game session |
-| `player_visits` | `players` joined to `casino_visits` via `$lookup` on `player_id` — one row per visit |
-
-## SQL JOIN support in pymongosql
-
-> **SQL `JOIN` syntax is not supported.** The parser does not recognise `JOIN`, `INNER JOIN`, or `LEFT JOIN` keywords — it concatenates them into the collection name (e.g. `playersINNERJOINsales`) and returns zero rows with no error.
->
-> **The correct approach is MongoDB `$lookup`** via a `CREATE VIEW` pipeline. The view is then queried as an ordinary flat table in SQL Lab. Both pre-built views above use this pattern and are created automatically on stack startup.
-
-### How it works
-
-```
-players  ──(player_id)──▶  casino_visits
-                               │
-                         $lookup (aggregate stage)
-                               │
-                        player_visits (MongoDB view)
-                               │
-                    SELECT ... FROM player_visits
-```
-
 ## Casino Player demo queries
 
 **Syntax rules:**
@@ -275,31 +248,6 @@ FROM players.aggregate(
     {"$sort": {"total_bet": -1}}]',
   '{}'
 )
-```
-
-### Approach comparison
-
-| | Inline `aggregate()` | Pre-built view |
-|---|---|---|
-| Setup required | None | `CREATE VIEW` once |
-| Ad-hoc queries | Yes | No (must alter view) |
-| Superset dataset | Not reusable | Reusable as a dataset |
-| SQL `WHERE` | Works (post-pipeline filter) | Works |
-| SQL `GROUP BY` | Does not work — use `$group` in pipeline | Works |
-| SQL `LIMIT` | Works | Works |
-
-### Pre-built views (no setup needed)
-
-Both views — `player_sessions` and `player_visits` — are created automatically by the seed container on first startup. You can query them immediately in SQL Lab without any additional steps.
-
-To recreate them manually if needed:
-
-```sql
--- Unwinds game_sessions array: one row per game session
-CREATE VIEW player_sessions ON players AS '[{"$unwind":"$game_sessions"},{"$project":{"player_id":1,"name":1,"vip_tier":1,"status":1,"total_wagered":1,"total_won":1,"country":"$profile.address.country","game":"$game_sessions.game","bet_amount":"$game_sessions.bet_amount","outcome":"$game_sessions.outcome","payout":"$game_sessions.payout","played_at":"$game_sessions.played_at"}}]'
-
--- Joins players to casino_visits on player_id: one row per visit
-CREATE VIEW player_visits ON players AS '[{"$lookup":{"from":"casino_visits","localField":"player_id","foreignField":"player_id","as":"visits"}},{"$unwind":{"path":"$visits","preserveNullAndEmptyArrays":false}},{"$project":{"player_id":1,"name":1,"vip_tier":1,"status":1,"total_wagered":1,"visit_id":"$visits.visit_id","casino_name":"$visits.casino_name","city":"$visits.city","country":"$visits.country","check_in":"$visits.check_in","check_out":"$visits.check_out","table_games_played":"$visits.table_games_played","slots_played":"$visits.slots_played","food_beverage_spend":"$visits.food_beverage_spend","hotel_stay":"$visits.hotel_stay","host_assigned":"$visits.host_assigned"}}]'
 ```
 
 ### Query 1 — Player roster with profile subdocument fields

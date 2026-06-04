@@ -1,0 +1,481 @@
+name: mongodb-superset-demo
+
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok", "mongodb://root:example@localhost:27017/admin?authSource=admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongo-seed:
+    image: mongo:8.0
+    container_name: mongo-seed
+    restart: "no"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -c
+      - |
+        mongosh "mongodb://root:example@mongodb:27017/admin?authSource=admin" <<'EOF'
+        db = db.getSiblingDB('demo');
+        db.sales.drop();
+        db.sales.insertMany([
+          { item: "Laptop", category: "Electronics", region: "NA", amount: 1299, quantity: 3, order_date: ISODate("2025-01-10T00:00:00Z") },
+          { item: "Phone", category: "Electronics", region: "EU", amount: 799, quantity: 5, order_date: ISODate("2025-01-14T00:00:00Z") },
+          { item: "Desk", category: "Furniture", region: "APAC", amount: 450, quantity: 2, order_date: ISODate("2025-02-01T00:00:00Z") },
+          { item: "Chair", category: "Furniture", region: "NA", amount: 180, quantity: 8, order_date: ISODate("2025-02-03T00:00:00Z") },
+          { item: "Headphones", category: "Electronics", region: "LATAM", amount: 199, quantity: 6, order_date: ISODate("2025-02-11T00:00:00Z") }
+        ]);
+
+        db.players.drop();
+        db.players.insertMany([
+          {
+            player_id: "PLR-001", name: "James Carter", status: "Active", vip_tier: "Platinum",
+            registration_date: ISODate("2021-03-15T00:00:00Z"), total_wagered: 85200, total_won: 72400,
+            profile: { age: 42, gender: "Male", preferred_language: "English",
+              address: { street: "88 Lucky Ave", city: "Las Vegas", country: "US" } },
+            contacts: [ { type: "email", value: "jcarter@email.com" }, { type: "phone", value: "+1-702-555-0101" } ],
+            game_sessions: [
+              { game: "Baccarat",   bet_amount: 5000, outcome: "win",  payout: 9500,  played_at: ISODate("2025-05-01T20:00:00Z") },
+              { game: "Blackjack",  bet_amount: 2000, outcome: "loss", payout: 0,     played_at: ISODate("2025-05-03T22:15:00Z") },
+              { game: "Roulette",   bet_amount: 1500, outcome: "win",  payout: 5250,  played_at: ISODate("2025-05-10T19:30:00Z") },
+              { game: "Poker",      bet_amount: 3000, outcome: "win",  payout: 7200,  played_at: ISODate("2025-05-18T21:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-002", name: "Sofia Nguyen", status: "Active", vip_tier: "Gold",
+            registration_date: ISODate("2022-07-22T00:00:00Z"), total_wagered: 34600, total_won: 28100,
+            profile: { age: 35, gender: "Female", preferred_language: "Vietnamese",
+              address: { street: "12 Fortune Blvd", city: "Macau", country: "MO" } },
+            contacts: [ { type: "email", value: "snguyen@mail.com" } ],
+            game_sessions: [
+              { game: "Baccarat",   bet_amount: 3000, outcome: "win",  payout: 5700,  played_at: ISODate("2025-04-20T18:00:00Z") },
+              { game: "Slots",      bet_amount: 500,  outcome: "loss", payout: 0,     played_at: ISODate("2025-04-25T14:30:00Z") },
+              { game: "Baccarat",   bet_amount: 2500, outcome: "win",  payout: 4750,  played_at: ISODate("2025-05-05T20:45:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-003", name: "Marcus Webb", status: "Active", vip_tier: "Silver",
+            registration_date: ISODate("2023-01-10T00:00:00Z"), total_wagered: 12400, total_won: 9800,
+            profile: { age: 29, gender: "Male", preferred_language: "English",
+              address: { street: "44 Jackpot Lane", city: "Atlantic City", country: "US" } },
+            contacts: [ { type: "email", value: "mwebb@inbox.com" }, { type: "phone", value: "+1-609-555-0234" } ],
+            game_sessions: [
+              { game: "Blackjack",  bet_amount: 300,  outcome: "win",  payout: 570,   played_at: ISODate("2025-03-12T21:00:00Z") },
+              { game: "Slots",      bet_amount: 200,  outcome: "win",  payout: 800,   played_at: ISODate("2025-03-14T16:00:00Z") },
+              { game: "Roulette",   bet_amount: 400,  outcome: "loss", payout: 0,     played_at: ISODate("2025-04-01T22:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-004", name: "Ling Zhao", status: "Active", vip_tier: "Platinum",
+            registration_date: ISODate("2020-11-05T00:00:00Z"), total_wagered: 120000, total_won: 98500,
+            profile: { age: 50, gender: "Female", preferred_language: "Mandarin",
+              address: { street: "7 Dragon Road", city: "Macau", country: "MO" } },
+            contacts: [ { type: "email", value: "lzhao@vip.com" }, { type: "phone", value: "+853-6288-1234" } ],
+            game_sessions: [
+              { game: "Baccarat",   bet_amount: 10000, outcome: "win",  payout: 19000, played_at: ISODate("2025-05-02T21:00:00Z") },
+              { game: "Poker",      bet_amount: 8000,  outcome: "loss", payout: 0,     played_at: ISODate("2025-05-07T22:30:00Z") },
+              { game: "Baccarat",   bet_amount: 12000, outcome: "win",  payout: 22800, played_at: ISODate("2025-05-14T20:00:00Z") },
+              { game: "Slots",      bet_amount: 1000,  outcome: "win",  payout: 4500,  played_at: ISODate("2025-05-20T15:00:00Z") },
+              { game: "Blackjack",  bet_amount: 5000,  outcome: "win",  payout: 9500,  played_at: ISODate("2025-05-22T23:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-005", name: "Ryan O'Brien", status: "Inactive", vip_tier: "Bronze",
+            registration_date: ISODate("2023-06-18T00:00:00Z"), total_wagered: 3200, total_won: 1100,
+            profile: { age: 24, gender: "Male", preferred_language: "English",
+              address: { street: "5 Clover St", city: "Dublin", country: "IE" } },
+            contacts: [ { type: "email", value: "robrien@post.ie" } ],
+            game_sessions: [
+              { game: "Slots",      bet_amount: 100,  outcome: "loss", payout: 0,     played_at: ISODate("2025-02-10T17:00:00Z") },
+              { game: "Roulette",   bet_amount: 200,  outcome: "win",  payout: 700,   played_at: ISODate("2025-02-11T18:30:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-006", name: "Ayesha Patel", status: "Active", vip_tier: "Gold",
+            registration_date: ISODate("2022-02-28T00:00:00Z"), total_wagered: 41000, total_won: 35200,
+            profile: { age: 38, gender: "Female", preferred_language: "English",
+              address: { street: "22 Royal Parade", city: "Singapore", country: "SG" } },
+            contacts: [ { type: "email", value: "apatel@sgmail.com" }, { type: "phone", value: "+65-9123-4567" } ],
+            game_sessions: [
+              { game: "Blackjack",  bet_amount: 1000, outcome: "win",  payout: 1900,  played_at: ISODate("2025-04-05T20:00:00Z") },
+              { game: "Baccarat",   bet_amount: 2500, outcome: "win",  payout: 4750,  played_at: ISODate("2025-04-12T21:30:00Z") },
+              { game: "Poker",      bet_amount: 1500, outcome: "loss", payout: 0,     played_at: ISODate("2025-04-28T22:00:00Z") },
+              { game: "Slots",      bet_amount: 300,  outcome: "win",  payout: 1200,  played_at: ISODate("2025-05-03T16:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-007", name: "Carlos Mendez", status: "Active", vip_tier: "Silver",
+            registration_date: ISODate("2023-09-01T00:00:00Z"), total_wagered: 15800, total_won: 11200,
+            profile: { age: 33, gender: "Male", preferred_language: "Spanish",
+              address: { street: "Calle 9 No. 45", city: "Miami", country: "US" } },
+            contacts: [ { type: "phone", value: "+1-305-555-0778" } ],
+            game_sessions: [
+              { game: "Roulette",   bet_amount: 500,  outcome: "win",  payout: 1750,  played_at: ISODate("2025-03-20T19:00:00Z") },
+              { game: "Slots",      bet_amount: 200,  outcome: "loss", payout: 0,     played_at: ISODate("2025-04-02T15:00:00Z") },
+              { game: "Blackjack",  bet_amount: 600,  outcome: "win",  payout: 1140,  played_at: ISODate("2025-04-15T21:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-008", name: "Yuki Tanaka", status: "Active", vip_tier: "Gold",
+            registration_date: ISODate("2021-12-20T00:00:00Z"), total_wagered: 52000, total_won: 43800,
+            profile: { age: 45, gender: "Female", preferred_language: "Japanese",
+              address: { street: "3-5 Namba", city: "Osaka", country: "JP" } },
+            contacts: [ { type: "email", value: "ytanaka@jpmail.jp" }, { type: "phone", value: "+81-6-5550-9988" } ],
+            game_sessions: [
+              { game: "Baccarat",   bet_amount: 4000, outcome: "win",  payout: 7600,  played_at: ISODate("2025-05-06T20:30:00Z") },
+              { game: "Blackjack",  bet_amount: 2000, outcome: "win",  payout: 3800,  played_at: ISODate("2025-05-08T22:00:00Z") },
+              { game: "Poker",      bet_amount: 3000, outcome: "loss", payout: 0,     played_at: ISODate("2025-05-15T21:30:00Z") },
+              { game: "Slots",      bet_amount: 500,  outcome: "win",  payout: 2000,  played_at: ISODate("2025-05-19T17:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-009", name: "David Osei", status: "Banned", vip_tier: "Bronze",
+            registration_date: ISODate("2023-03-14T00:00:00Z"), total_wagered: 5600, total_won: 800,
+            profile: { age: 27, gender: "Male", preferred_language: "English",
+              address: { street: "10 Palm St", city: "Accra", country: "GH" } },
+            contacts: [ { type: "email", value: "dosei@netmail.com" } ],
+            game_sessions: [
+              { game: "Slots",      bet_amount: 150,  outcome: "loss", payout: 0,     played_at: ISODate("2025-01-20T13:00:00Z") },
+              { game: "Roulette",   bet_amount: 300,  outcome: "loss", payout: 0,     played_at: ISODate("2025-01-22T14:30:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-010", name: "Emma Rousseau", status: "Active", vip_tier: "Silver",
+            registration_date: ISODate("2022-10-05T00:00:00Z"), total_wagered: 22500, total_won: 18900,
+            profile: { age: 31, gender: "Female", preferred_language: "French",
+              address: { street: "14 Rue de Rivoli", city: "Paris", country: "FR" } },
+            contacts: [ { type: "email", value: "erosse@frmail.fr" }, { type: "phone", value: "+33-6-5551-2233" } ],
+            game_sessions: [
+              { game: "Roulette",   bet_amount: 800,  outcome: "win",  payout: 2800,  played_at: ISODate("2025-04-18T20:00:00Z") },
+              { game: "Blackjack",  bet_amount: 600,  outcome: "win",  payout: 1140,  played_at: ISODate("2025-04-22T21:30:00Z") },
+              { game: "Poker",      bet_amount: 1000, outcome: "loss", payout: 0,     played_at: ISODate("2025-05-01T22:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-011", name: "Hassan Al-Farsi", status: "Active", vip_tier: "Platinum",
+            registration_date: ISODate("2020-08-12T00:00:00Z"), total_wagered: 95000, total_won: 80200,
+            profile: { age: 47, gender: "Male", preferred_language: "Arabic",
+              address: { street: "King Fahd Rd 88", city: "Dubai", country: "AE" } },
+            contacts: [ { type: "email", value: "halfarsi@ae.com" }, { type: "phone", value: "+971-50-555-6677" } ],
+            game_sessions: [
+              { game: "Baccarat",   bet_amount: 8000, outcome: "win",  payout: 15200, played_at: ISODate("2025-05-03T22:00:00Z") },
+              { game: "Poker",      bet_amount: 5000, outcome: "win",  payout: 12000, played_at: ISODate("2025-05-09T23:00:00Z") },
+              { game: "Blackjack",  bet_amount: 3000, outcome: "loss", payout: 0,     played_at: ISODate("2025-05-16T21:00:00Z") },
+              { game: "Roulette",   bet_amount: 2000, outcome: "win",  payout: 7000,  played_at: ISODate("2025-05-21T20:00:00Z") },
+              { game: "Slots",      bet_amount: 500,  outcome: "win",  payout: 2000,  played_at: ISODate("2025-05-24T17:30:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-012", name: "Natalia Kowalski", status: "Inactive", vip_tier: "Bronze",
+            registration_date: ISODate("2024-01-07T00:00:00Z"), total_wagered: 1800, total_won: 600,
+            profile: { age: 22, gender: "Female", preferred_language: "Polish",
+              address: { street: "ul. Zlota 12", city: "Warsaw", country: "PL" } },
+            contacts: [ { type: "email", value: "nkowalski@pl.net" } ],
+            game_sessions: [
+              { game: "Slots",      bet_amount: 50,   outcome: "win",  payout: 200,   played_at: ISODate("2025-01-15T15:00:00Z") },
+              { game: "Roulette",   bet_amount: 100,  outcome: "loss", payout: 0,     played_at: ISODate("2025-01-16T16:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-013", name: "Tom Buchanan", status: "Active", vip_tier: "Gold",
+            registration_date: ISODate("2022-05-30T00:00:00Z"), total_wagered: 47000, total_won: 39600,
+            profile: { age: 41, gender: "Male", preferred_language: "English",
+              address: { street: "900 Vegas Strip", city: "Las Vegas", country: "US" } },
+            contacts: [ { type: "email", value: "tbuchanan@usa.com" }, { type: "phone", value: "+1-702-555-0345" } ],
+            game_sessions: [
+              { game: "Poker",      bet_amount: 4000, outcome: "win",  payout: 9600,  played_at: ISODate("2025-05-04T21:00:00Z") },
+              { game: "Blackjack",  bet_amount: 1500, outcome: "win",  payout: 2850,  played_at: ISODate("2025-05-11T22:30:00Z") },
+              { game: "Baccarat",   bet_amount: 2000, outcome: "loss", payout: 0,     played_at: ISODate("2025-05-17T20:00:00Z") },
+              { game: "Slots",      bet_amount: 300,  outcome: "win",  payout: 1200,  played_at: ISODate("2025-05-23T16:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-014", name: "Mei Lin Chen", status: "Active", vip_tier: "Silver",
+            registration_date: ISODate("2023-04-11T00:00:00Z"), total_wagered: 19200, total_won: 14700,
+            profile: { age: 36, gender: "Female", preferred_language: "Mandarin",
+              address: { street: "88 Huaihai Rd", city: "Shanghai", country: "CN" } },
+            contacts: [ { type: "phone", value: "+86-21-5550-7788" } ],
+            game_sessions: [
+              { game: "Baccarat",   bet_amount: 2000, outcome: "win",  payout: 3800,  played_at: ISODate("2025-04-14T19:00:00Z") },
+              { game: "Slots",      bet_amount: 400,  outcome: "loss", payout: 0,     played_at: ISODate("2025-04-20T14:00:00Z") },
+              { game: "Blackjack",  bet_amount: 800,  outcome: "win",  payout: 1520,  played_at: ISODate("2025-05-02T20:30:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-015", name: "Jack Sullivan", status: "Active", vip_tier: "Bronze",
+            registration_date: ISODate("2024-03-19T00:00:00Z"), total_wagered: 4500, total_won: 2900,
+            profile: { age: 26, gender: "Male", preferred_language: "English",
+              address: { street: "6 Casino Ave", city: "Sydney", country: "AU" } },
+            contacts: [ { type: "email", value: "jsullivan@au.net" }, { type: "phone", value: "+61-2-5550-4321" } ],
+            game_sessions: [
+              { game: "Slots",      bet_amount: 100,  outcome: "win",  payout: 400,   played_at: ISODate("2025-03-25T13:00:00Z") },
+              { game: "Roulette",   bet_amount: 200,  outcome: "loss", payout: 0,     played_at: ISODate("2025-04-05T17:00:00Z") },
+              { game: "Blackjack",  bet_amount: 300,  outcome: "win",  payout: 570,   played_at: ISODate("2025-04-10T20:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-016", name: "Fatima Malik", status: "Active", vip_tier: "Gold",
+            registration_date: ISODate("2021-09-25T00:00:00Z"), total_wagered: 38500, total_won: 31000,
+            profile: { age: 40, gender: "Female", preferred_language: "Urdu",
+              address: { street: "23 Mall Rd", city: "Karachi", country: "PK" } },
+            contacts: [ { type: "email", value: "fmalik@pk.org" } ],
+            game_sessions: [
+              { game: "Blackjack",  bet_amount: 1200, outcome: "win",  payout: 2280,  played_at: ISODate("2025-04-08T20:00:00Z") },
+              { game: "Poker",      bet_amount: 2000, outcome: "win",  payout: 4800,  played_at: ISODate("2025-04-19T22:00:00Z") },
+              { game: "Slots",      bet_amount: 400,  outcome: "loss", payout: 0,     played_at: ISODate("2025-05-05T15:30:00Z") },
+              { game: "Baccarat",   bet_amount: 1800, outcome: "win",  payout: 3420,  played_at: ISODate("2025-05-12T21:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-017", name: "Dmitri Volkov", status: "Active", vip_tier: "Platinum",
+            registration_date: ISODate("2020-05-03T00:00:00Z"), total_wagered: 110000, total_won: 91000,
+            profile: { age: 52, gender: "Male", preferred_language: "Russian",
+              address: { street: "Tverskaya 15", city: "Moscow", country: "RU" } },
+            contacts: [ { type: "email", value: "dvolkov@ru.com" }, { type: "phone", value: "+7-495-555-0099" } ],
+            game_sessions: [
+              { game: "Poker",      bet_amount: 10000, outcome: "win",  payout: 24000, played_at: ISODate("2025-05-05T22:00:00Z") },
+              { game: "Baccarat",   bet_amount: 7000,  outcome: "win",  payout: 13300, played_at: ISODate("2025-05-10T23:00:00Z") },
+              { game: "Blackjack",  bet_amount: 4000,  outcome: "loss", payout: 0,     played_at: ISODate("2025-05-17T21:00:00Z") },
+              { game: "Roulette",   bet_amount: 3000,  outcome: "win",  payout: 10500, played_at: ISODate("2025-05-22T20:30:00Z") },
+              { game: "Slots",      bet_amount: 1000,  outcome: "win",  payout: 4000,  played_at: ISODate("2025-05-25T16:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-018", name: "Priya Sharma", status: "Inactive", vip_tier: "Bronze",
+            registration_date: ISODate("2023-11-02T00:00:00Z"), total_wagered: 2100, total_won: 900,
+            profile: { age: 28, gender: "Female", preferred_language: "Hindi",
+              address: { street: "MG Road 44", city: "Bangalore", country: "IN" } },
+            contacts: [ { type: "email", value: "psharma@in.net" }, { type: "phone", value: "+91-80-5550-1122" } ],
+            game_sessions: [
+              { game: "Slots",      bet_amount: 75,   outcome: "win",  payout: 300,   played_at: ISODate("2025-02-14T14:00:00Z") },
+              { game: "Roulette",   bet_amount: 150,  outcome: "loss", payout: 0,     played_at: ISODate("2025-02-15T15:30:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-019", name: "Lucas Ferreira", status: "Active", vip_tier: "Silver",
+            registration_date: ISODate("2022-12-15T00:00:00Z"), total_wagered: 17600, total_won: 13400,
+            profile: { age: 34, gender: "Male", preferred_language: "Portuguese",
+              address: { street: "Av. Paulista 800", city: "Sao Paulo", country: "BR" } },
+            contacts: [ { type: "email", value: "lferreira@br.com" } ],
+            game_sessions: [
+              { game: "Blackjack",  bet_amount: 700,  outcome: "win",  payout: 1330,  played_at: ISODate("2025-04-06T20:00:00Z") },
+              { game: "Roulette",   bet_amount: 500,  outcome: "loss", payout: 0,     played_at: ISODate("2025-04-13T18:30:00Z") },
+              { game: "Slots",      bet_amount: 200,  outcome: "win",  payout: 800,   played_at: ISODate("2025-04-30T16:00:00Z") },
+              { game: "Poker",      bet_amount: 1000, outcome: "win",  payout: 2400,  played_at: ISODate("2025-05-07T22:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-020", name: "Ingrid Lindqvist", status: "Active", vip_tier: "Gold",
+            registration_date: ISODate("2021-06-08T00:00:00Z"), total_wagered: 44000, total_won: 37500,
+            profile: { age: 39, gender: "Female", preferred_language: "Swedish",
+              address: { street: "Kungsgatan 20", city: "Stockholm", country: "SE" } },
+            contacts: [ { type: "email", value: "ilindqvist@se.net" }, { type: "phone", value: "+46-8-5550-3344" } ],
+            game_sessions: [
+              { game: "Baccarat",   bet_amount: 3500, outcome: "win",  payout: 6650,  played_at: ISODate("2025-05-01T19:30:00Z") },
+              { game: "Poker",      bet_amount: 2500, outcome: "win",  payout: 6000,  played_at: ISODate("2025-05-08T21:00:00Z") },
+              { game: "Blackjack",  bet_amount: 1000, outcome: "loss", payout: 0,     played_at: ISODate("2025-05-13T22:30:00Z") },
+              { game: "Roulette",   bet_amount: 600,  outcome: "win",  payout: 2100,  played_at: ISODate("2025-05-20T20:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-021", name: "Kevin Park", status: "Active", vip_tier: "Bronze",
+            registration_date: ISODate("2024-02-10T00:00:00Z"), total_wagered: 3800, total_won: 2200,
+            profile: { age: 23, gender: "Male", preferred_language: "Korean",
+              address: { street: "Gangnam-daero 99", city: "Seoul", country: "KR" } },
+            contacts: [ { type: "email", value: "kpark@kr.com" } ],
+            game_sessions: [
+              { game: "Slots",      bet_amount: 100,  outcome: "win",  payout: 400,   played_at: ISODate("2025-03-05T15:00:00Z") },
+              { game: "Blackjack",  bet_amount: 200,  outcome: "loss", payout: 0,     played_at: ISODate("2025-03-12T19:00:00Z") },
+              { game: "Roulette",   bet_amount: 150,  outcome: "win",  payout: 525,   played_at: ISODate("2025-03-28T17:30:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-022", name: "Beatriz Costa", status: "Inactive", vip_tier: "Silver",
+            registration_date: ISODate("2023-07-04T00:00:00Z"), total_wagered: 9400, total_won: 6200,
+            profile: { age: 30, gender: "Female", preferred_language: "Spanish",
+              address: { street: "Calle Gran Via 55", city: "Madrid", country: "ES" } },
+            contacts: [ { type: "email", value: "bcosta@es.org" }, { type: "phone", value: "+34-91-555-7788" } ],
+            game_sessions: [
+              { game: "Roulette",   bet_amount: 400,  outcome: "win",  payout: 1400,  played_at: ISODate("2025-02-20T19:00:00Z") },
+              { game: "Slots",      bet_amount: 150,  outcome: "loss", payout: 0,     played_at: ISODate("2025-02-25T14:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-023", name: "Arjun Mehta", status: "Active", vip_tier: "Gold",
+            registration_date: ISODate("2022-03-17T00:00:00Z"), total_wagered: 36000, total_won: 29800,
+            profile: { age: 44, gender: "Male", preferred_language: "Hindi",
+              address: { street: "Connaught Place B-12", city: "New Delhi", country: "IN" } },
+            contacts: [ { type: "email", value: "amehta@in.com" }, { type: "phone", value: "+91-11-5550-9900" } ],
+            game_sessions: [
+              { game: "Poker",      bet_amount: 3000, outcome: "win",  payout: 7200,  played_at: ISODate("2025-04-25T22:00:00Z") },
+              { game: "Baccarat",   bet_amount: 2000, outcome: "win",  payout: 3800,  played_at: ISODate("2025-05-02T20:30:00Z") },
+              { game: "Blackjack",  bet_amount: 1000, outcome: "loss", payout: 0,     played_at: ISODate("2025-05-09T21:00:00Z") },
+              { game: "Slots",      bet_amount: 300,  outcome: "win",  payout: 1200,  played_at: ISODate("2025-05-16T16:30:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-024", name: "Michelle Bernard", status: "Active", vip_tier: "Silver",
+            registration_date: ISODate("2023-05-22T00:00:00Z"), total_wagered: 14500, total_won: 10800,
+            profile: { age: 32, gender: "Female", preferred_language: "French",
+              address: { street: "Blvd. Saint-Germain 88", city: "Brussels", country: "BE" } },
+            contacts: [ { type: "phone", value: "+32-2-555-4455" } ],
+            game_sessions: [
+              { game: "Blackjack",  bet_amount: 500,  outcome: "win",  payout: 950,   played_at: ISODate("2025-03-30T20:00:00Z") },
+              { game: "Roulette",   bet_amount: 300,  outcome: "loss", payout: 0,     played_at: ISODate("2025-04-07T18:30:00Z") },
+              { game: "Slots",      bet_amount: 200,  outcome: "win",  payout: 800,   played_at: ISODate("2025-04-22T15:00:00Z") }
+            ]
+          },
+          {
+            player_id: "PLR-025", name: "Omar Khalid", status: "Active", vip_tier: "Platinum",
+            registration_date: ISODate("2020-01-14T00:00:00Z"), total_wagered: 102000, total_won: 86500,
+            profile: { age: 55, gender: "Male", preferred_language: "Arabic",
+              address: { street: "Corniche Rd 101", city: "Abu Dhabi", country: "AE" } },
+            contacts: [ { type: "email", value: "okhalid@ae.net" }, { type: "phone", value: "+971-2-555-3311" } ],
+            game_sessions: [
+              { game: "Baccarat",   bet_amount: 9000, outcome: "win",  payout: 17100, played_at: ISODate("2025-05-03T21:30:00Z") },
+              { game: "Poker",      bet_amount: 6000, outcome: "win",  payout: 14400, played_at: ISODate("2025-05-10T23:30:00Z") },
+              { game: "Blackjack",  bet_amount: 3500, outcome: "loss", payout: 0,     played_at: ISODate("2025-05-15T22:00:00Z") },
+              { game: "Roulette",   bet_amount: 2500, outcome: "win",  payout: 8750,  played_at: ISODate("2025-05-21T21:00:00Z") },
+              { game: "Slots",      bet_amount: 800,  outcome: "win",  payout: 3200,  played_at: ISODate("2025-05-25T17:00:00Z") }
+            ]
+          }
+        ]);
+
+        db.casino_visits.drop();
+        db.casino_visits.insertMany([
+          { visit_id: "VIS-001", player_id: "PLR-001", casino_name: "Bellagio",         city: "Las Vegas",    country: "US", check_in: ISODate("2025-01-15T18:00:00Z"), check_out: ISODate("2025-01-15T23:30:00Z"), table_games_played: 3, slots_played: 1, food_beverage_spend: 120, hotel_stay: false, host_assigned: "Mike Torres" },
+          { visit_id: "VIS-002", player_id: "PLR-001", casino_name: "MGM Grand",         city: "Las Vegas",    country: "US", check_in: ISODate("2025-03-08T20:00:00Z"), check_out: ISODate("2025-03-09T02:00:00Z"), table_games_played: 5, slots_played: 0, food_beverage_spend: 240, hotel_stay: true,  host_assigned: "Mike Torres" },
+          { visit_id: "VIS-003", player_id: "PLR-001", casino_name: "Wynn Las Vegas",    city: "Las Vegas",    country: "US", check_in: ISODate("2025-05-20T19:00:00Z"), check_out: ISODate("2025-05-21T01:00:00Z"), table_games_played: 4, slots_played: 2, food_beverage_spend: 310, hotel_stay: true,  host_assigned: "Mike Torres" },
+          { visit_id: "VIS-004", player_id: "PLR-002", casino_name: "Grand Lisboa",      city: "Macau",        country: "MO", check_in: ISODate("2025-02-10T16:00:00Z"), check_out: ISODate("2025-02-10T22:00:00Z"), table_games_played: 2, slots_played: 3, food_beverage_spend: 85,  hotel_stay: false, host_assigned: "Amy Cheung" },
+          { visit_id: "VIS-005", player_id: "PLR-002", casino_name: "Venetian Macao",    city: "Macau",        country: "MO", check_in: ISODate("2025-04-18T17:00:00Z"), check_out: ISODate("2025-04-18T23:00:00Z"), table_games_played: 3, slots_played: 1, food_beverage_spend: 150, hotel_stay: false, host_assigned: "Amy Cheung" },
+          { visit_id: "VIS-006", player_id: "PLR-003", casino_name: "Borgata",           city: "Atlantic City",country: "US", check_in: ISODate("2025-03-11T18:30:00Z"), check_out: ISODate("2025-03-11T23:00:00Z"), table_games_played: 2, slots_played: 4, food_beverage_spend: 60,  hotel_stay: false, host_assigned: null },
+          { visit_id: "VIS-007", player_id: "PLR-003", casino_name: "Caesars Atlantic",  city: "Atlantic City",country: "US", check_in: ISODate("2025-04-05T20:00:00Z"), check_out: ISODate("2025-04-06T01:30:00Z"), table_games_played: 3, slots_played: 2, food_beverage_spend: 95,  hotel_stay: false, host_assigned: null },
+          { visit_id: "VIS-008", player_id: "PLR-004", casino_name: "Venetian Macao",    city: "Macau",        country: "MO", check_in: ISODate("2025-01-20T19:00:00Z"), check_out: ISODate("2025-01-21T03:00:00Z"), table_games_played: 6, slots_played: 0, food_beverage_spend: 480, hotel_stay: true,  host_assigned: "Amy Cheung" },
+          { visit_id: "VIS-009", player_id: "PLR-004", casino_name: "City of Dreams",    city: "Macau",        country: "MO", check_in: ISODate("2025-03-14T18:00:00Z"), check_out: ISODate("2025-03-15T02:00:00Z"), table_games_played: 7, slots_played: 1, food_beverage_spend: 620, hotel_stay: true,  host_assigned: "Amy Cheung" },
+          { visit_id: "VIS-010", player_id: "PLR-004", casino_name: "MGM Cotai",         city: "Macau",        country: "MO", check_in: ISODate("2025-05-10T20:00:00Z"), check_out: ISODate("2025-05-11T04:00:00Z"), table_games_played: 8, slots_played: 2, food_beverage_spend: 750, hotel_stay: true,  host_assigned: "Amy Cheung" },
+          { visit_id: "VIS-011", player_id: "PLR-006", casino_name: "Marina Bay Sands",  city: "Singapore",    country: "SG", check_in: ISODate("2025-02-14T18:00:00Z"), check_out: ISODate("2025-02-14T23:30:00Z"), table_games_played: 3, slots_played: 2, food_beverage_spend: 200, hotel_stay: false, host_assigned: "Sarah Lim" },
+          { visit_id: "VIS-012", player_id: "PLR-006", casino_name: "Resorts World",     city: "Singapore",    country: "SG", check_in: ISODate("2025-04-22T17:00:00Z"), check_out: ISODate("2025-04-22T22:00:00Z"), table_games_played: 2, slots_played: 1, food_beverage_spend: 130, hotel_stay: false, host_assigned: "Sarah Lim" },
+          { visit_id: "VIS-013", player_id: "PLR-007", casino_name: "Seminole Hard Rock",city: "Miami",        country: "US", check_in: ISODate("2025-03-19T19:00:00Z"), check_out: ISODate("2025-03-20T00:30:00Z"), table_games_played: 2, slots_played: 3, food_beverage_spend: 75,  hotel_stay: false, host_assigned: null },
+          { visit_id: "VIS-014", player_id: "PLR-008", casino_name: "Osaka IR Casino",   city: "Osaka",        country: "JP", check_in: ISODate("2025-04-10T18:00:00Z"), check_out: ISODate("2025-04-10T23:00:00Z"), table_games_played: 4, slots_played: 2, food_beverage_spend: 300, hotel_stay: false, host_assigned: "Kenji Mori" },
+          { visit_id: "VIS-015", player_id: "PLR-008", casino_name: "Osaka IR Casino",   city: "Osaka",        country: "JP", check_in: ISODate("2025-05-16T19:00:00Z"), check_out: ISODate("2025-05-17T01:00:00Z"), table_games_played: 5, slots_played: 1, food_beverage_spend: 420, hotel_stay: true,  host_assigned: "Kenji Mori" },
+          { visit_id: "VIS-016", player_id: "PLR-011", casino_name: "Atlantis The Palm", city: "Dubai",        country: "AE", check_in: ISODate("2025-02-28T20:00:00Z"), check_out: ISODate("2025-03-01T03:00:00Z"), table_games_played: 5, slots_played: 1, food_beverage_spend: 550, hotel_stay: true,  host_assigned: "Rania Hassan" },
+          { visit_id: "VIS-017", player_id: "PLR-011", casino_name: "Wynn Al Marjan",    city: "Dubai",        country: "AE", check_in: ISODate("2025-05-08T21:00:00Z"), check_out: ISODate("2025-05-09T04:00:00Z"), table_games_played: 6, slots_played: 0, food_beverage_spend: 680, hotel_stay: true,  host_assigned: "Rania Hassan" },
+          { visit_id: "VIS-018", player_id: "PLR-013", casino_name: "Wynn Las Vegas",    city: "Las Vegas",    country: "US", check_in: ISODate("2025-04-12T18:00:00Z"), check_out: ISODate("2025-04-12T23:30:00Z"), table_games_played: 4, slots_played: 1, food_beverage_spend: 280, hotel_stay: false, host_assigned: "Mike Torres" },
+          { visit_id: "VIS-019", player_id: "PLR-013", casino_name: "Bellagio",          city: "Las Vegas",    country: "US", check_in: ISODate("2025-05-02T19:00:00Z"), check_out: ISODate("2025-05-03T01:00:00Z"), table_games_played: 5, slots_played: 0, food_beverage_spend: 350, hotel_stay: false, host_assigned: "Mike Torres" },
+          { visit_id: "VIS-020", player_id: "PLR-016", casino_name: "Karachi Leisure",   city: "Karachi",      country: "PK", check_in: ISODate("2025-03-25T17:00:00Z"), check_out: ISODate("2025-03-25T22:00:00Z"), table_games_played: 2, slots_played: 2, food_beverage_spend: 90,  hotel_stay: false, host_assigned: null },
+          { visit_id: "VIS-021", player_id: "PLR-017", casino_name: "Sochi Casino",      city: "Moscow",       country: "RU", check_in: ISODate("2025-01-30T20:00:00Z"), check_out: ISODate("2025-01-31T04:00:00Z"), table_games_played: 7, slots_played: 0, food_beverage_spend: 800, hotel_stay: true,  host_assigned: "Igor Petrov" },
+          { visit_id: "VIS-022", player_id: "PLR-017", casino_name: "Sochi Casino",      city: "Moscow",       country: "RU", check_in: ISODate("2025-04-05T21:00:00Z"), check_out: ISODate("2025-04-06T05:00:00Z"), table_games_played: 8, slots_played: 1, food_beverage_spend: 920, hotel_stay: true,  host_assigned: "Igor Petrov" },
+          { visit_id: "VIS-023", player_id: "PLR-019", casino_name: "Conrad Punta",      city: "Sao Paulo",    country: "BR", check_in: ISODate("2025-04-03T18:30:00Z"), check_out: ISODate("2025-04-03T23:00:00Z"), table_games_played: 2, slots_played: 3, food_beverage_spend: 110, hotel_stay: false, host_assigned: null },
+          { visit_id: "VIS-024", player_id: "PLR-020", casino_name: "Casino Cosmopol",   city: "Stockholm",    country: "SE", check_in: ISODate("2025-03-17T17:00:00Z"), check_out: ISODate("2025-03-17T22:00:00Z"), table_games_played: 3, slots_played: 1, food_beverage_spend: 160, hotel_stay: false, host_assigned: "Anna Berg" },
+          { visit_id: "VIS-025", player_id: "PLR-020", casino_name: "Casino Cosmopol",   city: "Stockholm",    country: "SE", check_in: ISODate("2025-05-11T18:00:00Z"), check_out: ISODate("2025-05-11T23:30:00Z"), table_games_played: 4, slots_played: 2, food_beverage_spend: 210, hotel_stay: false, host_assigned: "Anna Berg" },
+          { visit_id: "VIS-026", player_id: "PLR-023", casino_name: "Delta Corp Goa",    city: "New Delhi",    country: "IN", check_in: ISODate("2025-04-28T19:00:00Z"), check_out: ISODate("2025-04-29T01:00:00Z"), table_games_played: 3, slots_played: 2, food_beverage_spend: 140, hotel_stay: false, host_assigned: null },
+          { visit_id: "VIS-027", player_id: "PLR-025", casino_name: "Wynn Al Marjan",    city: "Abu Dhabi",    country: "AE", check_in: ISODate("2025-02-20T20:00:00Z"), check_out: ISODate("2025-02-21T04:30:00Z"), table_games_played: 6, slots_played: 1, food_beverage_spend: 900, hotel_stay: true,  host_assigned: "Rania Hassan" },
+          { visit_id: "VIS-028", player_id: "PLR-025", casino_name: "Atlantis The Palm", city: "Abu Dhabi",    country: "AE", check_in: ISODate("2025-04-14T21:00:00Z"), check_out: ISODate("2025-04-15T05:00:00Z"), table_games_played: 7, slots_played: 0, food_beverage_spend: 1100, hotel_stay: true, host_assigned: "Rania Hassan" },
+          { visit_id: "VIS-029", player_id: "PLR-025", casino_name: "Wynn Al Marjan",    city: "Abu Dhabi",    country: "AE", check_in: ISODate("2025-05-22T20:00:00Z"), check_out: ISODate("2025-05-23T04:00:00Z"), table_games_played: 8, slots_played: 2, food_beverage_spend: 1250, hotel_stay: true, host_assigned: "Rania Hassan" },
+          { visit_id: "VIS-030", player_id: "PLR-015", casino_name: "The Star Sydney",   city: "Sydney",       country: "AU", check_in: ISODate("2025-03-22T18:00:00Z"), check_out: ISODate("2025-03-22T22:30:00Z"), table_games_played: 1, slots_played: 4, food_beverage_spend: 55,  hotel_stay: false, host_assigned: null }
+        ]);
+
+        // Create MongoDB views (queryable as flat tables via pymongosql)
+        db.player_sessions.drop();
+        db.createCollection("player_sessions", {
+          viewOn: "players",
+          pipeline: [
+            { $unwind: "$game_sessions" },
+            { $project: {
+              player_id: 1, name: 1, vip_tier: 1, status: 1,
+              total_wagered: 1, total_won: 1,
+              country: "$profile.address.country",
+              game:       "$game_sessions.game",
+              bet_amount: "$game_sessions.bet_amount",
+              outcome:    "$game_sessions.outcome",
+              payout:     "$game_sessions.payout",
+              played_at:  "$game_sessions.played_at"
+            }}
+          ]
+        });
+
+        db.player_visits.drop();
+        db.createCollection("player_visits", {
+          viewOn: "players",
+          pipeline: [
+            { $lookup: { from: "casino_visits", localField: "player_id", foreignField: "player_id", as: "visits" } },
+            { $unwind: { path: "$visits", preserveNullAndEmptyArrays: false } },
+            { $project: {
+              player_id: 1, name: 1, vip_tier: 1, status: 1, total_wagered: 1,
+              visit_id:            "$visits.visit_id",
+              casino_name:         "$visits.casino_name",
+              city:                "$visits.city",
+              country:             "$visits.country",
+              check_in:            "$visits.check_in",
+              check_out:           "$visits.check_out",
+              table_games_played:  "$visits.table_games_played",
+              slots_played:        "$visits.slots_played",
+              food_beverage_spend: "$visits.food_beverage_spend",
+              hotel_stay:          "$visits.hotel_stay",
+              host_assigned:       "$visits.host_assigned"
+            }}
+          ]
+        });
+        EOF
+
+  superset-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
+    container_name: superset-init
+    restart: "no"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      SUPERSET_SECRET_KEY: this_is_a_demo_secret_key_change_me
+      SUPERSET_LOAD_EXAMPLES: "no"
+    volumes:
+      - superset_home:/app/superset_home
+    command:
+      - /bin/sh
+      - -c
+      - |
+        superset db upgrade &&
+        (superset fab create-admin --username admin --firstname Superset --lastname Admin --email admin@example.com --password admin || true) &&
+        superset init
+
+  superset:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
+    container_name: superset
+    restart: unless-stopped
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    environment:
+      SUPERSET_SECRET_KEY: this_is_a_demo_secret_key_change_me
+      SUPERSET_LOAD_EXAMPLES: "no"
+    ports:
+      - "8088:8088"
+    volumes:
+      - superset_home:/app/superset_home
+    command:
+      - /bin/sh
+      - -c
+      - |
+        exec superset run -h 0.0.0.0 -p 8088
+
+volumes:
+  mongodb_data:
+  superset_home:
